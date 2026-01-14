@@ -4,16 +4,10 @@
 #include <ArduinoJson.h>
 #include "HT_lCMEN2R13EFC1.h"
 
-#if __has_include("config.h")
-#include "config.h"
-#elif __has_include("config.example.h")
-#include "config.example.h"
-#else
-#error "Missing config.h or config.example.h"
-#endif
+#include "hydromatic_shared_config.h"
 
 #ifndef WIFI_SSID
-#error "Please configure WiFi credentials in include/config.h"
+#error "Missing config.h or config.example.h"
 #endif
 
 #ifndef VEXT_PIN
