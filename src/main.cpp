@@ -2,11 +2,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-#include <GxEPD2_BW.h>
-#include <GxEPD2_213_B73.h>
-#include <Fonts/FreeSans9pt7b.h>
-#include <Fonts/FreeSansBold12pt7b.h>
-#include <Fonts/FreeSansBold18pt7b.h>
+#include "HT_lCMEN2R13EFC1.h"
 
 #include "config.h"
 
@@ -14,8 +10,23 @@
 #error "Please create include/config.h based on include/config.example.h"
 #endif
 
-GxEPD2_BW<GxEPD2_213_B73, GxEPD2_213_B73::HEIGHT> display(
-    GxEPD2_213_B73(EPD_CS_PIN, EPD_DC_PIN, EPD_RST_PIN, EPD_BUSY_PIN));
+#ifndef VEXT_PIN
+#define VEXT_PIN 45
+#endif
+
+#ifndef EPD_SPI_FREQUENCY
+#define EPD_SPI_FREQUENCY 6000000
+#endif
+
+HT_ICMEN2R13EFC1 display(
+    EPD_RST_PIN,
+    EPD_DC_PIN,
+    EPD_CS_PIN,
+    EPD_BUSY_PIN,
+    EPD_SCK_PIN,
+    EPD_MOSI_PIN,
+    EPD_MISO_PIN,
+    EPD_SPI_FREQUENCY);
 
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
@@ -39,6 +50,11 @@ struct StatusData {
 StatusData statusData;
 unsigned long lastDisplayRefresh = 0;
 unsigned long lastMessageMillis = 0;
+uint16_t displayWidth = 0;
+uint16_t displayHeight = 0;
+
+constexpr uint8_t kFontSmallHeight = 13;
+constexpr uint8_t kFontMediumHeight = 16;
 
 String connectionStatus() {
   if (WiFi.status() != WL_CONNECTED) {
@@ -104,6 +120,21 @@ bool ensureMQTT() {
   return connected;
 }
 
+DISPLAY_ANGLE displayAngle() {
+  switch (DISPLAY_ROTATION) {
+    case 0:
+      return ANGLE_0_DEGREE;
+    case 1:
+      return ANGLE_90_DEGREE;
+    case 2:
+      return ANGLE_180_DEGREE;
+    case 3:
+      return ANGLE_270_DEGREE;
+    default:
+      return ANGLE_0_DEGREE;
+  }
+}
+
 String formatUptimeSeconds(unsigned long seconds) {
   unsigned long minutes = seconds / 60;
   unsigned long hours = minutes / 60;
@@ -166,49 +197,48 @@ void drawStatusTag(const String &text) {
     return;
   }
 
-  display.setFont(&FreeSans9pt7b);
-  int16_t tbx, tby;
-  uint16_t tbw, tbh;
-  display.getTextBounds(text, 0, 0, &tbx, &tby, &tbw, &tbh);
+  display.setFont(ArialMT_Plain_10);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
 
-  const int padding = 4;
-  int x = display.width() - tbw - padding * 2 - 4;
-  int y = 2;
-  int h = tbh + padding * 2;
+  const int padding = 2;
+  uint16_t textWidth = display.getStringWidth(text);
+  int x = static_cast<int>(displayWidth) - static_cast<int>(textWidth) - padding * 2;
+  if (x < 0) {
+    x = 0;
+  }
+  int y = 0;
+  int h = kFontSmallHeight + padding * 2;
 
-  display.fillRect(x, y, tbw + padding * 2, h, GxEPD_BLACK);
-  display.setTextColor(GxEPD_WHITE);
-  display.setCursor(x + padding, y + h - padding);
-  display.print(text);
-  display.setTextColor(GxEPD_BLACK);
+  display.setColor(BLACK);
+  display.fillRect(x, y, textWidth + padding * 2, h);
+  display.setColor(WHITE);
+  display.drawString(x + padding, y + padding, text);
+  display.setColor(BLACK);
 }
 
 void drawHeader() {
-  display.setFont(&FreeSansBold18pt7b);
-  display.setCursor(0, 28);
-  display.print(statusData.title.length() ? statusData.title : "System Status");
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(0, 0, statusData.title.length() ? statusData.title : "System Status");
   drawStatusTag(statusData.status);
 
-  display.setFont(&FreeSans9pt7b);
-  display.setCursor(0, 46);
-  display.print(statusData.subtitle);
+  display.setFont(ArialMT_Plain_10);
+  display.drawString(0, kFontMediumHeight + 2, statusData.subtitle);
 }
 
 void drawDetails() {
-  display.setFont(&FreeSans9pt7b);
-  display.setCursor(0, 68);
-  display.print(statusData.detail);
-
-  int y = 86;
+  display.setFont(ArialMT_Plain_10);
+  int y = kFontMediumHeight + kFontSmallHeight + 6;
+  display.drawString(0, y, statusData.detail);
+  y += kFontSmallHeight + 6;
   for (size_t i = 0; i < statusData.metricCount; ++i) {
-    display.setCursor(0, y);
-    display.print(statusData.metrics[i].label + ": " + statusData.metrics[i].value);
-    y += 14;
+    display.drawString(0, y, statusData.metrics[i].label + ": " + statusData.metrics[i].value);
+    y += kFontSmallHeight + 2;
   }
 }
 
 void drawFooter() {
-  display.setFont(&FreeSans9pt7b);
+  display.setFont(ArialMT_Plain_10);
   String footer;
   if (statusData.updatedAt.length()) {
     footer = "Updated: " + statusData.updatedAt;
@@ -218,28 +248,40 @@ void drawFooter() {
     footer = connectionStatus();
   }
 
-  display.setCursor(0, display.height() - 4);
-  display.print(footer);
+  display.drawString(0, displayHeight - kFontSmallHeight, footer);
 }
 
 void renderDisplay() {
-  display.setFullWindow();
-  display.firstPage();
-  do {
-    display.fillScreen(GxEPD_WHITE);
-    drawHeader();
-    drawDetails();
-    drawFooter();
-  } while (display.nextPage());
+  display.clear();
+  display.setColor(BLACK);
+  drawHeader();
+  drawDetails();
+  drawFooter();
+  display.update(BLACK_BUFFER);
+  display.display();
+}
+
+void updateDisplayGeometry() {
+  display.screenRotate(displayAngle());
+  displayWidth = display.width();
+  displayHeight = display.height();
+}
+
+void setVext(bool enabled) {
+  pinMode(VEXT_PIN, OUTPUT);
+  digitalWrite(VEXT_PIN, enabled ? LOW : HIGH);
 }
 
 void setup() {
   Serial.begin(115200);
   delay(200);
 
-  SPI.begin(EPD_SCK_PIN, EPD_MISO_PIN, EPD_MOSI_PIN, EPD_CS_PIN);
-  display.init(115200);
-  display.setRotation(DISPLAY_ROTATION);
+  setVext(true);
+  delay(100);
+  display.init();
+  updateDisplayGeometry();
+  display.setFont(ArialMT_Plain_10);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
 
   mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);

@@ -16,14 +16,14 @@ Arduino sketch for the Heltec Wireless Paper (ESP32-S3 + 2.13" E-Ink) that subsc
    ```bash
    cp include/config.example.h include/config.h
    ```
-3. Update the MQTT broker, topic, and E-Paper pins in `include/config.h`.
+3. Update the MQTT broker, topic, and E-Paper pins in `include/config.h`. The defaults match Heltec's Wireless Paper reference sketch (RST=6, DC=5, CS=4, BUSY=7, SCK=3, MOSI=2, MISO=-1) and the Vext power control pin (GPIO45, active LOW). The project uses Heltec's `HT_lCMEN2R13EFC1` driver from the `Heltec_ESP32` library for the 2.13" E-Ink panel.
 4. Build + upload:
    ```bash
    pio run -e heltec_wireless_paper
    pio run -e heltec_wireless_paper -t upload
    ```
 
-> **Pin mapping:** Refer to the Heltec Wireless Paper schematic (linked on the product page) to confirm the E-Paper SPI pins before flashing.
+> **Pin mapping:** Refer to the Heltec Wireless Paper schematic (linked on the product page) to confirm the E-Paper SPI pins and Vext control before flashing.
 
 ## MQTT Payload
 
