@@ -4,10 +4,16 @@
 #include <ArduinoJson.h>
 #include "HT_lCMEN2R13EFC1.h"
 
+#if __has_include("config.h")
 #include "config.h"
+#elif __has_include("config.example.h")
+#include "config.example.h"
+#else
+#error "Missing config.h or config.example.h"
+#endif
 
 #ifndef WIFI_SSID
-#error "Please create include/config.h based on include/config.example.h"
+#error "Please configure WiFi credentials in include/config.h"
 #endif
 
 #ifndef VEXT_PIN
@@ -150,7 +156,7 @@ String formatUptimeSeconds(unsigned long seconds) {
   return String(seconds) + "s";
 }
 
-void updateMetrics(const JsonObject &metrics) {
+void updateMetrics(const JsonObjectConst &metrics) {
   statusData.metricCount = 0;
   for (JsonPair pair : metrics) {
     if (statusData.metricCount >= MAX_METRICS) {
@@ -169,8 +175,9 @@ void handlePayload(const JsonDocument &doc) {
   statusData.detail = doc["detail"] | doc["details"] | "Waiting for data";
   statusData.updatedAt = doc["updated_at"] | doc["timestamp"] | "";
 
-  if (doc.containsKey("metrics") && doc["metrics"].is<JsonObject>()) {
-    updateMetrics(doc["metrics"].as<JsonObject>());
+  JsonVariantConst metrics = doc["metrics"];
+  if (metrics.is<JsonObjectConst>()) {
+    updateMetrics(metrics.as<JsonObjectConst>());
   } else {
     statusData.metricCount = 0;
   }
@@ -180,7 +187,7 @@ void handlePayload(const JsonDocument &doc) {
 }
 
 void mqttCallback(char *topic, byte *payload, unsigned int length) {
-  StaticJsonDocument<1024> doc;
+  JsonDocument doc;
   DeserializationError error = deserializeJson(doc, payload, length);
   if (error) {
     statusData.detail = String("JSON error: ") + error.c_str();
