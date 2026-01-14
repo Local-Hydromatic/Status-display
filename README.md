@@ -12,7 +12,7 @@ Arduino sketch for the Heltec Wireless Paper (ESP32-S3 + 2.13" E-Ink) that subsc
 ## Setup
 
 1. **Install PlatformIO** in VS Code or via CLI.
-2. Copy the configuration template and adjust credentials/pins:
+2. Copy the configuration template and adjust credentials/pins (or share config from Hydromatic-Server as described below):
    ```bash
    cp include/config.example.h include/config.h
    ```
@@ -22,6 +22,16 @@ Arduino sketch for the Heltec Wireless Paper (ESP32-S3 + 2.13" E-Ink) that subsc
    pio run -e heltec_wireless_paper
    pio run -e heltec_wireless_paper -t upload
    ```
+
+### Sharing configuration with Hydromatic-Server
+
+If you keep config, secrets, and MQTT settings in the Hydromatic-Server repo, you can share them here by adding the Hydromatic-Server `include/` directory to the build flags (already set in `platformio.ini`) and placing these files there:
+
+- `config.h` (Wi-Fi + hardware settings)
+- `secrets.h` (credentials/tokens)
+- `mqtt.h` (MQTT broker + topics)
+
+The firmware automatically includes those files when present, so both repos stay in sync.
 
 > **Pin mapping:** Refer to the Heltec Wireless Paper schematic (linked on the product page) to confirm the E-Paper SPI pins and Vext control before flashing.
 
