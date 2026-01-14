@@ -17,14 +17,17 @@
 #define MQTT_WILL_MESSAGE "offline"
 #define MQTT_ONLINE_MESSAGE "online"
 
-// E-paper SPI pins (adjust to match the Heltec Wireless Paper schematic)
-#define EPD_SCK_PIN 18
-#define EPD_MISO_PIN 19
-#define EPD_MOSI_PIN 23
-#define EPD_CS_PIN 5
-#define EPD_DC_PIN 17
-#define EPD_RST_PIN 16
-#define EPD_BUSY_PIN 4
+// Heltec Wireless Paper V1.1 E-Ink pins (from Heltec reference sketch)
+#define EPD_SCK_PIN 3
+#define EPD_MOSI_PIN 2
+#define EPD_MISO_PIN -1
+#define EPD_CS_PIN 4
+#define EPD_DC_PIN 5
+#define EPD_RST_PIN 6
+#define EPD_BUSY_PIN 7
+
+// External power control (Vext) is active LOW on Wireless Paper
+#define VEXT_PIN 45
 
 // Display settings
 #define DISPLAY_ROTATION 1
